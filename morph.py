@@ -2,11 +2,22 @@
 
 import sys
 import re
+import time
+import random
 import urllib.request, urllib.error
 from bs4 import BeautifulSoup
 from PyQt4 import QtGui, QtCore
 
+import node
+
+#root wikipedia site
 wikiURL = "https://ja.wikipedia.org/wiki/"
+
+#1つのノードが所有可能なエッジの数
+__CAPACITY_EDGES__ = 10
+
+#サイトを参照する回数
+__TRIAL_COUNT__ = 5
 
 class MainWindow(QtGui.QMainWindow):
     def __init__(self, parent = None):
@@ -37,24 +48,22 @@ class MainWindow(QtGui.QMainWindow):
         modal.tagTitle = QtGui.QLabel( "[Title:]" + self.qText.text(), modal)
         modal.tagContent = QtGui.QLabel(modal)
         
-        pile = scrapingLink(self.qText.text())
-        bList = brushUpList(pile)
+        start = time.time()
+        nodeList = createNetwork(self.qText.text())
+        elapsed_time = time.time() - start
+        print ("[TOTAL]elapsed_time:{0}".format(elapsed_time) + "[sec]")
+
+        #output
+        for item in nodeList:
+            item.print_content()
 
         wordStr = ""
-        for i,item in enumerate(bList):
-            wordStr = wordStr + item
-            if i % 3 == 2:
-                wordStr = wordStr + "\n"
-            else:
-                wordStr = wordStr + ", "
-            
 
-        modal.tagContent.setText(wordStr)  
-
+        modal.tagContent.setText(wordStr)
         modal.tagTitle.move(25,25)
         modal.tagContent.move(25,40)        
         
-        modal.setGeometry(300,100,500,700)
+        modal.setGeometry(300,100,600,700)
         modal.setWindowTitle("tag view")
         modal.setWindowModality(QtCore.Qt.WindowModal)
         modal.exec_()
@@ -87,6 +96,19 @@ def brushUpList(list):
 
     return result
 
+def createNetwork(firstQuery):
+    nList = []
+    query = firstQuery
+    for idx in range(0, __TRIAL_COUNT__):
+        start = time.time()
+        pile = scrapingLink(query)
+        bList = brushUpList(pile)
+        pickList = bList if len(bList) < __CAPACITY_EDGES__ else random.sample(bList, __CAPACITY_EDGES__)
+        nList.append(node.Node(query,pickList))
+        elapsed_time = time.time() - start
+        print ("[" + query +"]elapsed_time:{0}".format(elapsed_time) + "[sec]")
+        query = random.choice(pickList)
+    return nList
 
 def main():
     app = QtGui.QApplication(sys.argv)
