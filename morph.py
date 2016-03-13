@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import sys
+import re
 import urllib.request, urllib.error
 from bs4 import BeautifulSoup
 from PyQt4 import QtGui, QtCore
@@ -33,18 +34,22 @@ class MainWindow(QtGui.QMainWindow):
 
     def showTextModal(self):
         modal = QtGui.QDialog()
-        modal.tagTitle = QtGui.QLabel(self.qText.text(), modal)
-        qURL = wikiURL + urllib.request.quote(self.qText.text())
-        html = urllib.request.urlopen(qURL).read()
-        soup = BeautifulSoup(html, "html.parser")
-        f = soup.find_all("p")
-
+        modal.tagTitle = QtGui.QLabel( "[Title:]" + self.qText.text(), modal)
         modal.tagContent = QtGui.QLabel(modal)
-        strBuilder = ""
-        for t in f:
-            strBuilder = strBuilder + t.text + "\n"
+        
+        pile = scrapingLink(self.qText.text())
+        bList = brushUpList(pile)
 
-        modal.tagContent.setText(strBuilder)        
+        wordStr = ""
+        for i,item in enumerate(bList):
+            wordStr = wordStr + item
+            if i % 3 == 2:
+                wordStr = wordStr + "\n"
+            else:
+                wordStr = wordStr + ", "
+            
+
+        modal.tagContent.setText(wordStr)  
 
         modal.tagTitle.move(25,25)
         modal.tagContent.move(25,40)        
@@ -53,6 +58,35 @@ class MainWindow(QtGui.QMainWindow):
         modal.setWindowTitle("tag view")
         modal.setWindowModality(QtCore.Qt.WindowModal)
         modal.exec_()
+
+
+#wikipedia内にあるキーワードリンクを抽出
+def scrapingLink(query):
+    linkList = []
+    qURL = wikiURL + urllib.request.quote(query)
+    html = urllib.request.urlopen(qURL).read()
+    soup = BeautifulSoup(html, "html.parser")
+    f = soup.find_all("p")
+
+    for t in f:
+        if t.a is not None:
+            alist = t.find_all("a")
+            for word in alist:
+                linkList.append(word.text)
+    return linkList
+
+def brushUpList(list):
+    result = []
+    pattern = r"\d+年|\d+世紀|\d+月\d+日|\[[\d]+\]|いつ\?|\?"
+    #pattern = r"\["
+
+    for item in list:
+        matchOB = re.match(pattern, item)
+        if matchOB is None and 0 < len(item.strip()):
+            result.append(item)
+
+    return result
+
 
 def main():
     app = QtGui.QApplication(sys.argv)
